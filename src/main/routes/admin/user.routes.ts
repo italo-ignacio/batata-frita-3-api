@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { findMeController } from '@application/controller/user';
+import { findOneUserController } from '@application/controller/user';
 
 export default (inputRouter: Router): void => {
   const router = Router();
 
-  router.get('/me', findMeController());
+  router.get('/:id', findOneUserController());
 
   inputRouter.use('/user', router);
 };

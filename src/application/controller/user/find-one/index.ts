@@ -26,8 +26,8 @@ export const findOneUserController: Controller =
   () => async (request: Request, response: Response) => {
     try {
       const payload = await userRepository.findOne({
-        select: userFindParams({}),
-        where: { id: request.params.id }
+        select: userFindParams(),
+        where: [{ id: request.params.id }, { googleId: request.params.id }]
       });
 
       if (payload === null)
@@ -36,10 +36,7 @@ export const findOneUserController: Controller =
           response
         });
 
-      return ok({
-        payload,
-        response
-      });
+      return ok({ payload, response });
     } catch (error) {
       return messageErrorResponse({ error, response });
     }

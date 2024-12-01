@@ -1,24 +1,26 @@
 import { IsNull } from 'typeorm';
 import { ValidationError } from 'yup';
 import { authenticateSchema } from '@data/validation';
+import { decode } from 'jsonwebtoken';
 import {
-  badRequest,
   errorLogger,
-  generateToken,
   messageErrorResponse,
   ok,
+  unauthorized,
   validationErrorResponse
 } from '@main/utils';
-import { compare } from 'bcrypt';
-import { messages } from '@domain/helpers';
 import { userFindParams } from '@data/search';
 import { userRepository } from '@infra/repository';
 import type { Controller } from '@domain/protocols';
 import type { Request, Response } from 'express';
 
 interface Body {
+  accessToken: string;
+  displayName: string;
   email: string;
-  password: string;
+  emailVerified: boolean;
+  refreshToken: string;
+  googleId: string;
 }
 
 /**
@@ -58,41 +60,51 @@ export const authenticateController: Controller =
     try {
       await authenticateSchema.validate(request, { abortEarly: false });
 
-      const { email, password } = request.body as Body;
+      const { email, accessToken, displayName, emailVerified, googleId } = request.body as Body;
+
+      const decoded = decode(accessToken) as {
+        email: string;
+        user_id: string;
+        email_verified: boolean;
+      };
+
+      if (!emailVerified || !decoded?.email_verified)
+        return unauthorized({
+          message: {
+            english: 'Use a verified email to login',
+            portuguese: ''
+          },
+          response
+        });
+
+      if (email !== decoded?.email || googleId !== decoded?.user_id)
+        return unauthorized({ response });
 
       const user = await userRepository.findOne({
-        select: { ...userFindParams({}), password: true },
-        where: { email, finishedAt: IsNull() }
+        relations: { landingPage: true },
+        select: userFindParams(),
+        where: { email, finishedAt: IsNull(), googleId }
       });
 
-      if (user === null) return badRequest({ message: messages.auth.notFound, response });
+      if (!user) {
+        const newUser = await userRepository.insert({
+          email,
+          googleId,
+          name: displayName
+        });
 
-      const passwordIsCorrect = await compare(password, user.password);
+        const insertedId = newUser.identifiers[0].id;
 
-      if (!passwordIsCorrect) return badRequest({ message: messages.auth.notFound, response });
+        const getNewUser = await userRepository.findOne({
+          relations: { landingPage: true },
+          select: userFindParams(),
+          where: { id: insertedId }
+        });
 
-      const { accessToken } = generateToken({
-        email: user.email,
-        id: user.id,
-        name: user.name,
-        role: user.role
-      });
+        return ok({ payload: { user: getNewUser }, response });
+      }
 
-      return ok({
-        payload: {
-          accessToken,
-          user: {
-            createdAt: user.createdAt,
-            email: user.email,
-            id: user.id,
-            name: user.name,
-            phone: user.phone,
-            role: user.role,
-            updatedAt: user.updatedAt
-          }
-        },
-        response
-      });
+      return ok({ payload: { user }, response });
     } catch (error) {
       errorLogger(error);
 

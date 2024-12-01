@@ -6,62 +6,87 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn
 } from 'typeorm';
-import { PropertyEntity } from '@domain/entity/property';
-import { Role } from '@domain/enum';
+import { LandingPageEntity } from '../landing-page';
+import { Plans, UserStatus } from '@domain/enum';
 
-@Entity('user')
+@Entity({ name: 'user' })
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   public id: string;
 
-  @Column({ length: 255, type: 'varchar' })
-  public name: string;
+  @Column({ length: 150, unique: true })
+  public googleId: string;
 
-  @Column({ type: 'varchar' })
-  public password: string;
-
-  @Column({ type: 'varchar' })
+  @Column({ length: 150 })
   public email: string;
 
-  @Column({ length: 15, type: 'varchar' })
-  public phone: string;
+  @Column({ length: 255 })
+  public name: string;
 
-  @Column({ default: Role.COMMON, enum: Role, type: 'enum' })
-  public role: Role;
+  @Column({ default: Plans.FREE, enum: Plans, type: 'enum' })
+  public plan: Plans;
 
-  @OneToMany(() => PropertyEntity, (property) => property.user)
-  public properties: PropertyEntity[];
+  @Column({ default: () => 'CURRENT_TIMESTAMP', type: 'timestamp with time zone' })
+  public planExpireAt: Date;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @Column({ default: UserStatus.ACTIVE, enum: UserStatus, type: 'enum' })
+  public status: UserStatus;
+
+  @Column({ default: 1 })
+  public maxLandingPage: number;
+
+  @Column({ default: 3 })
+  public maxSocialLink: number;
+
+  @Column({ default: 2 })
+  public maxBanner: number;
+
+  @Column({ default: 4 })
+  public maxPointsByBanner: number;
+
+  @OneToMany(() => LandingPageEntity, (landingPage) => landingPage.user)
+  public landingPage: LandingPageEntity[];
+
+  @Column({ nullable: true, type: 'timestamp with time zone' })
+  public finishedAt?: Date;
+
+  @CreateDateColumn({ type: 'timestamp with time zone' })
   public createdAt: Date;
 
-  @UpdateDateColumn({ nullable: true, type: 'timestamp' })
-  public updatedAt: Date | null;
-
-  @Column({ name: 'finishedAt', nullable: true, type: 'timestamp' })
-  public finishedAt: Date | null;
+  @UpdateDateColumn({ type: 'timestamp with time zone' })
+  public updatedAt: Date;
 
   public constructor(
     id: string,
-    name: string,
+    googleId: string,
     email: string,
-    password: string,
-    phone: string,
-    role: Role,
-    properties: PropertyEntity[],
-    createdAt: Date,
-    updatedAt: Date | null,
-    finishedAt: Date | null
+    name: string,
+    plan: Plans,
+    status: UserStatus,
+    maxLandingPage: number,
+    maxSocialLink: number,
+    maxBanner: number,
+    maxPointsByBanner: number,
+    landingPage: LandingPageEntity[],
+    finishedAt?: Date,
+    planExpireAt: Date = new Date(),
+    createdAt: Date = new Date(),
+    updatedAt: Date = new Date()
   ) {
     this.id = id;
-    this.name = name;
-    this.password = password;
+    this.googleId = googleId;
     this.email = email;
-    this.phone = phone;
-    this.role = role;
-    this.properties = properties;
+    this.name = name;
+    this.plan = plan;
+    this.planExpireAt = planExpireAt;
+    this.status = status;
+    this.maxLandingPage = maxLandingPage;
+    this.maxSocialLink = maxSocialLink;
+    this.maxBanner = maxBanner;
+    this.maxPointsByBanner = maxPointsByBanner;
+    this.landingPage = landingPage;
+    this.finishedAt = finishedAt;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
-    this.finishedAt = finishedAt;
   }
 }
